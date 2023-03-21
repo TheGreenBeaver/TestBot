@@ -1,0 +1,19 @@
+{
+  "name": "test-bot",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "packageManager": "yarn@3.5.0",
+  "scripts": {
+    "build": "tsc",
+    "start": "yarn node ./build/start.js"
+  },
+  "devDependencies": {
+    "@types/node": "^18.15.5",
+    "dotenv": "^16.0.3",
+    "typescript": "^5.0.2"
+  },
+  "dependencies": {
+    "grammy": "^1.15.3"
+  }
+}
