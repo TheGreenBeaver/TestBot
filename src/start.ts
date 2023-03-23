@@ -11,24 +11,71 @@ if (!token) {
 
 const bot = new Bot(token);
 
-const intervalIds: Record<number, NodeJS.Timer> = {};
+type ChatData = { processingAmt: number, intervalId: NodeJS.Timer };
 
-const performHeavyStuff = async (chatId: number) => {
+class Typer {
+  private processingChats: Record<number, ChatData> = {};
+
+  startProcessing(chatId: number) {
+    const chatData = this.processingChats[chatId];
+
+    if (!chatData || chatData.processingAmt === 0) {
+      this.processingChats[chatId] = {
+        processingAmt: 1,
+        intervalId: this.launch(chatId),
+      };
+    } else {
+      chatData.processingAmt++;
+    }
+  }
+
+  finishProcessing(chatId: number) {
+    const chatData = this.processingChats[chatId];
+
+    if (!chatData) {
+      return;
+    }
+
+    chatData.processingAmt = Math.max(0, chatData.processingAmt - 1);
+    this.cancel(chatId);
+
+    if (chatData.processingAmt !== 0) {
+      chatData.intervalId = this.launch(chatId);
+    }
+  }
+
+  private sendTyping(chatId: number) {
+    bot.api.sendChatAction(chatId, 'typing')
+  }
+
+  private launch(chatId: number): NodeJS.Timer {
+    this.sendTyping(chatId);
+
+    return setInterval(() => this.sendTyping(chatId), 5000);
+  }
+
+  private cancel(chatId: number) {
+    const chatData = this.processingChats[chatId];
+
+    clearInterval(chatData?.intervalId);
+  }
+}
+
+const typer = new Typer();
+
+const performHeavyStuff = async (chatId: number, repliedTo: string) => {
   // ...
-  await new Promise(resolve => setTimeout(resolve, 32000));
+  await new Promise(resolve => setTimeout(resolve, 20000));
 
-  clearInterval(intervalIds[chatId]);
-  bot.api.sendMessage(chatId, 'done!');
+  await bot.api.sendMessage(chatId, `done processing ${repliedTo}`);
+  typer.finishProcessing(chatId);
 };
 
-bot.on('message', ctx => {
-  const chatId = ctx.chat.id;
+bot.on('message:text', ctx => {
+  const { from: { id }, message: { text } } = ctx;
 
-  intervalIds[chatId] = setInterval(() => {
-    bot.api.sendChatAction(chatId, 'typing');
-  }, 5000);
-
-  performHeavyStuff(chatId);
+  typer.startProcessing(id);
+  performHeavyStuff(id, text);
 });
 
 bot.start();
